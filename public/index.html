@@ -56,26 +56,30 @@
     flex-wrap: wrap;
     justify-content: flex-end;
   }
-  .header-auth input {
-    width: 130px;
-    padding: 8px 10px;
-    font-size: 0.82rem;
-  }
   .header-auth .btn {
-    padding: 8px 12px;
+    padding: 8px 14px;
     font-size: 0.82rem;
   }
   .header-auth-status {
     color: var(--muted);
-    font-size: 0.8rem;
+    font-size: 0.82rem;
     margin-right: 4px;
     white-space: nowrap;
   }
   .header-auth-status strong { color: var(--accent2); }
+  .auth-card {
+    max-width: 430px;
+    margin: 40px auto;
+  }
+  .auth-guide {
+    color: var(--muted);
+    font-size: .86rem;
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
   @media(max-width: 760px) {
     header { align-items: flex-start; flex-direction: column; }
     .header-auth { width: 100%; justify-content: flex-start; }
-    .header-auth input { flex: 1; min-width: 120px; }
   }
 
   /* ── TABS ── */
@@ -440,11 +444,9 @@
   </div>
   <div class="header-auth">
     <span id="loginStatus" class="header-auth-status">로그인 필요</span>
-    <input type="text" id="authName" placeholder="이름" maxlength="20">
-    <input type="password" id="authPassword" placeholder="비밀번호" maxlength="30" onkeydown="if(event.key==='Enter') login()">
-    <button class="btn secondary" onclick="login()">로그인</button>
-    <button class="btn" onclick="signup()">회원가입</button>
-    <button class="btn secondary" onclick="logout()">로그아웃</button>
+    <button id="loginTopBtn" class="btn secondary" onclick="goLogin()">로그인</button>
+    <button id="signupTopBtn" class="btn" onclick="goSignup()">회원가입</button>
+    <button id="logoutTopBtn" class="btn secondary" onclick="logout()" style="display:none;">로그아웃</button>
   </div>
 </header>
 
@@ -456,6 +458,46 @@
 
 <div class="main">
 
+  <!-- ══════════════════ AUTH: 로그인 ══════════════════ -->
+  <div id="page-login" class="page">
+    <div class="card auth-card">
+      <div class="card-title">🔐 로그인</div>
+      <p class="auth-guide">이미 가입한 이름과 비밀번호를 입력하세요. 로그인 후 모집글 작성, 참여, 채팅 기능을 사용할 수 있습니다.</p>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>이름</label>
+        <input type="text" id="loginName" placeholder="예: 변민석" maxlength="20">
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>비밀번호</label>
+        <input type="password" id="loginPassword" placeholder="비밀번호" maxlength="30" onkeydown="if(event.key==='Enter') login()">
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="login()">로그인</button>
+        <button class="btn secondary" onclick="goSignup()">회원가입 화면으로</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════ AUTH: 회원가입 ══════════════════ -->
+  <div id="page-signup" class="page">
+    <div class="card auth-card">
+      <div class="card-title">📝 회원가입</div>
+      <p class="auth-guide">수업용 간단 회원가입입니다. 이름과 비밀번호만 사용하며, 같은 이름은 중복 가입할 수 없습니다.</p>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>이름</label>
+        <input type="text" id="signupName" placeholder="예: 변민석" maxlength="20">
+      </div>
+      <div class="form-group" style="margin-bottom:14px;">
+        <label>비밀번호</label>
+        <input type="password" id="signupPassword" placeholder="비밀번호" maxlength="30" onkeydown="if(event.key==='Enter') signup()">
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="signup()">회원가입</button>
+        <button class="btn secondary" onclick="goLogin()">로그인 화면으로</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ══════════════════ PAGE 1: 메뉴 추천 ══════════════════ -->
   <div id="page-recommend" class="page active">
 
@@ -464,7 +506,7 @@
       <div class="form-row">
         <div class="form-group">
           <label>이름 (선택)</label>
-          <input type="text" id="myName" placeholder="예: 홍길동" maxlength="10">
+          <input type="text" id="myName" placeholder="예: 이해인" maxlength="10">
         </div>
         <div class="form-group">
           <label>예산 (원)</label>
@@ -620,7 +662,7 @@ let selectedCategory = '전체';
 // ══════════════════════════════════════
 // TAB
 // ══════════════════════════════════════
-function showTab(name) {
+function showTab(name, remember = true) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
 
@@ -630,7 +672,10 @@ function showTab(name) {
 
   page.classList.add('active');
   if (tab) tab.classList.add('active');
-  localStorage.setItem('baedalpot_active_tab', name);
+
+  if (remember && (name === 'recommend' || name === 'board')) {
+    localStorage.setItem('baedalpot_active_tab', name);
+  }
 
   if (name === 'board') renderBoard();
 }
@@ -639,6 +684,14 @@ function restoreActiveTab() {
   const saved = localStorage.getItem('baedalpot_active_tab') || 'recommend';
   const target = document.getElementById('page-' + saved) ? saved : 'recommend';
   showTab(target);
+}
+
+function goLogin() {
+  showTab('login', false);
+}
+
+function goSignup() {
+  showTab('signup', false);
 }
 
 // ══════════════════════════════════════
@@ -756,40 +809,52 @@ async function apiRequest(url, options = {}) {
 }
 function updateLoginStatus() {
   const user = getAuth();
-  const el = document.getElementById('loginStatus');
-  if (!el) return;
+  const status = document.getElementById('loginStatus');
+  const loginBtn = document.getElementById('loginTopBtn');
+  const signupBtn = document.getElementById('signupTopBtn');
+  const logoutBtn = document.getElementById('logoutTopBtn');
+
   if (user) {
-    el.innerHTML = `✅ <strong>${escapeHtml(user.name)}</strong>님으로 로그인 중`;
-    const nameInput = document.getElementById('authName');
-    if (nameInput) nameInput.value = user.name;
+    status.innerHTML = `<strong>${escapeHtml(user.name)}</strong>님 로그인 중`;
+    if (loginBtn) loginBtn.style.display = 'none';
+    if (signupBtn) signupBtn.style.display = 'none';
+    if (logoutBtn) logoutBtn.style.display = '';
   } else {
-    el.textContent = '로그인 필요';
+    status.textContent = '로그인 필요';
+    if (loginBtn) loginBtn.style.display = '';
+    if (signupBtn) signupBtn.style.display = '';
+    if (logoutBtn) logoutBtn.style.display = 'none';
   }
 }
+
 async function signup() {
-  const name = document.getElementById('authName').value.trim();
-  const password = document.getElementById('authPassword').value.trim();
+  const name = document.getElementById('signupName').value.trim();
+  const password = document.getElementById('signupPassword').value.trim();
   if (!name || !password) { showToast('이름과 비밀번호를 입력해주세요', true); return; }
   try {
     const user = await apiRequest(`${API_BASE}/auth/signup`, { method:'POST', body: JSON.stringify({ name, password }) });
     setAuth(user);
-    document.getElementById('authPassword').value = '';
+    document.getElementById('signupPassword').value = '';
     showToast('회원가입 및 로그인 완료');
+    showTab(localStorage.getItem('baedalpot_active_tab') || 'board');
     await renderBoard();
   } catch(e) { showToast(e.message, true); }
 }
+
 async function login() {
-  const name = document.getElementById('authName').value.trim();
-  const password = document.getElementById('authPassword').value.trim();
+  const name = document.getElementById('loginName').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
   if (!name || !password) { showToast('이름과 비밀번호를 입력해주세요', true); return; }
   try {
     const user = await apiRequest(`${API_BASE}/auth/login`, { method:'POST', body: JSON.stringify({ name, password }) });
     setAuth(user);
-    document.getElementById('authPassword').value = '';
+    document.getElementById('loginPassword').value = '';
     showToast('로그인 완료');
+    showTab(localStorage.getItem('baedalpot_active_tab') || 'board');
     await renderBoard();
   } catch(e) { showToast(e.message, true); }
 }
+
 function logout() {
   clearAuth();
   showToast('로그아웃 완료');
