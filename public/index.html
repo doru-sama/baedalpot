@@ -31,9 +31,10 @@
   header {
     background: var(--surface);
     border-bottom: 2px solid var(--accent);
-    padding: 18px 32px;
+    padding: 14px 32px;
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 16px;
     position: sticky;
     top: 0;
@@ -47,6 +48,35 @@
   }
   .logo span { color: var(--accent2); }
   header p { color: var(--muted); font-size: 0.85rem; }
+
+  .header-auth {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .header-auth input {
+    width: 130px;
+    padding: 8px 10px;
+    font-size: 0.82rem;
+  }
+  .header-auth .btn {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+  }
+  .header-auth-status {
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin-right: 4px;
+    white-space: nowrap;
+  }
+  .header-auth-status strong { color: var(--accent2); }
+  @media(max-width: 760px) {
+    header { align-items: flex-start; flex-direction: column; }
+    .header-auth { width: 100%; justify-content: flex-start; }
+    .header-auth input { flex: 1; min-width: 120px; }
+  }
 
   /* ── TABS ── */
   .tabs {
@@ -408,12 +438,20 @@
     <div class="logo">배달<span>팟</span>.zip</div>
     <p>미래캠퍼스 공동주문 모집 & 메뉴 추천 앱 | ACE 8조</p>
   </div>
+  <div class="header-auth">
+    <span id="loginStatus" class="header-auth-status">로그인 필요</span>
+    <input type="text" id="authName" placeholder="이름" maxlength="20">
+    <input type="password" id="authPassword" placeholder="비밀번호" maxlength="30" onkeydown="if(event.key==='Enter') login()">
+    <button class="btn secondary" onclick="login()">로그인</button>
+    <button class="btn" onclick="signup()">회원가입</button>
+    <button class="btn secondary" onclick="logout()">로그아웃</button>
+  </div>
 </header>
 
 <div class="tabs">
-  <div class="tab active" onclick="showTab('recommend')">🍽️ 메뉴 추천</div>
+  <div class="tab active" data-tab="recommend" onclick="showTab('recommend')">🍽️ 메뉴 추천</div>
 
-  <div class="tab" onclick="showTab('board')">📋 모집 게시판</div>
+  <div class="tab" data-tab="board" onclick="showTab('board')">📋 모집 게시판</div>
 </div>
 
 <div class="main">
@@ -467,24 +505,6 @@
   <div id="page-board" class="page">
     <div class="board-layout">
       <div class="board-sidebar">
-        <div class="card">
-          <div class="card-title">🔐 회원가입 / 로그인</div>
-          <div id="loginStatus" class="notice" style="margin-bottom:12px;">로그인하면 팟 생성, 참여, 채팅을 사용할 수 있어요.</div>
-          <div class="form-group" style="margin-bottom:10px;">
-            <label>이름</label>
-            <input type="text" id="authName" placeholder="예: 변민석" maxlength="20">
-          </div>
-          <div class="form-group" style="margin-bottom:12px;">
-            <label>비밀번호</label>
-            <input type="password" id="authPassword" placeholder="4자리 이상" maxlength="30">
-          </div>
-          <div class="btn-row" style="margin-top:0;">
-            <button class="btn" onclick="signup()">회원가입</button>
-            <button class="btn secondary" onclick="login()">로그인</button>
-            <button class="btn secondary" onclick="logout()">로그아웃</button>
-          </div>
-        </div>
-
         <div class="card">
           <div class="card-title">📮 팟 모집 글 올리기</div>
           <div class="form-group" style="margin-bottom:10px;">
@@ -603,10 +623,22 @@ let selectedCategory = '전체';
 function showTab(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
-  const tab = event && event.currentTarget ? event.currentTarget : document.querySelector(`.tab[onclick*="${name}"]`);
+
+  const page = document.getElementById('page-' + name);
+  const tab = document.querySelector(`.tab[data-tab="${name}"]`) || document.querySelector(`.tab[onclick*="${name}"]`);
+  if (!page) return;
+
+  page.classList.add('active');
   if (tab) tab.classList.add('active');
+  localStorage.setItem('baedalpot_active_tab', name);
+
   if (name === 'board') renderBoard();
+}
+
+function restoreActiveTab() {
+  const saved = localStorage.getItem('baedalpot_active_tab') || 'recommend';
+  const target = document.getElementById('page-' + saved) ? saved : 'recommend';
+  showTab(target);
 }
 
 // ══════════════════════════════════════
@@ -731,7 +763,7 @@ function updateLoginStatus() {
     const nameInput = document.getElementById('authName');
     if (nameInput) nameInput.value = user.name;
   } else {
-    el.textContent = '로그인하면 팟 생성, 참여, 채팅을 사용할 수 있어요.';
+    el.textContent = '로그인 필요';
   }
 }
 async function signup() {
@@ -953,7 +985,7 @@ function showToast(msg, err = false) {
 
 
 // Initial render
-renderBoard();
+restoreActiveTab();
 </script>
 </body>
 </html>
