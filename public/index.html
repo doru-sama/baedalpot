@@ -505,7 +505,7 @@
       <div class="form-row">
         <div class="form-group">
           <label>예산 (원)</label>
-          <input type="number" id="myBudget" placeholder="15000" min="0" step="500" value="15000">
+          <input type="number" id="myBudget" placeholder="예: 15000" min="0" step="500">
         </div>
       </div>
 
@@ -807,14 +807,17 @@ function sortMenus(list, sortType) {
   return sorted;
 }
 
-function renderMenuCard(m, extra = '') {
-  const canSolo = m.minOrder <= (parseInt(document.getElementById('myBudget').value) || 15000);
+function renderMenuCard(m, extra = '', showBudgetBadge = false) {
+  const budgetInput = document.getElementById('myBudget')?.value;
+  const budget = budgetInput ? parseInt(budgetInput) : null;
+  const canSolo = budget !== null && m.minOrder <= budget;
+  const badgeHtml = showBudgetBadge ? (canSolo ? '<div class="match-badge">예산OK</div>' : '<span class="badge yellow" style="margin-top:6px;font-size:.7rem;">공동주문 추천</span>') : '';
   return `<div class="menu-card">
     <div class="emoji">${m.emoji}</div>
     <div class="name">${escapeHtml(m.name)}</div>
     <div class="category" style="margin-top:8px;">${escapeHtml(m.category)} · 최소주문 ${m.minOrder.toLocaleString()}원${m.deliveryFee ? ` · 배달비 ${m.deliveryFee.toLocaleString()}원` : ''}</div>
     ${extra}
-    ${canSolo ? '<div class="match-badge">예산OK</div>' : '<span class="badge yellow" style="margin-top:6px;font-size:.7rem;">공동주문 추천</span>'}
+    ${badgeHtml}
   </div>`;
 }
 
@@ -853,7 +856,12 @@ function renderAllStores() {
 }
 
 function recommendMenus() {
-  const budget = parseInt(document.getElementById('myBudget').value) || 15000;
+  const budgetRaw = document.getElementById('myBudget').value;
+  const budget = parseInt(budgetRaw);
+  if (!budgetRaw || Number.isNaN(budget) || budget <= 0) {
+    document.getElementById('recommendResult').innerHTML = '<div class="notice">⚠️ 예산을 입력한 뒤 메뉴 추천을 받아주세요.</div>';
+    return;
+  }
   const sortMode = document.getElementById('recommendSort')?.value || 'priceAsc';
   const showAll = document.getElementById('showAllStores')?.checked || false;
   const limit = 5;
@@ -892,7 +900,7 @@ function recommendMenus() {
     html += `<div style="font-weight:700;margin-bottom:10px;color:var(--green);">✅ 추천 식당</div>`;
     html += `<div class="menu-grid">`;
     pickedStores.forEach(m => {
-      html += renderMenuCard(m);
+      html += renderMenuCard(m, '', true);
     });
     html += `</div>`;
   }
@@ -902,7 +910,7 @@ function recommendMenus() {
 }
 
 function resetRecommend() {
-  document.getElementById('myBudget').value = '15000';
+  document.getElementById('myBudget').value = '';
   if (document.getElementById('recommendSort')) document.getElementById('recommendSort').value = 'priceAsc';
   if (document.getElementById('showAllStores')) document.getElementById('showAllStores').checked = false;
   document.querySelectorAll('#categoryTags .tag').forEach(t => t.classList.remove('active'));
