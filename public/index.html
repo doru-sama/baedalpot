@@ -465,7 +465,7 @@
       <p class="auth-guide">이미 가입한 이름과 비밀번호를 입력하세요. 로그인 후 모집글 작성, 참여, 채팅 기능을 사용할 수 있습니다.</p>
       <div class="form-group" style="margin-bottom:12px;">
         <label>이름</label>
-        <input type="text" id="loginName" placeholder="예: 변민석" maxlength="20">
+        <input type="text" id="loginName" placeholder="예: 홍길동" maxlength="20">
       </div>
       <div class="form-group" style="margin-bottom:14px;">
         <label>비밀번호</label>
@@ -484,7 +484,7 @@
       <div class="card-title">📝 회원가입</div>
       <div class="form-group" style="margin-bottom:12px;">
         <label>이름</label>
-        <input type="text" id="signupName" placeholder="예: 변민석" maxlength="20">
+        <input type="text" id="signupName" placeholder="예: 홍길동" maxlength="20">
       </div>
       <div class="form-group" style="margin-bottom:14px;">
         <label>비밀번호</label>
@@ -526,16 +526,18 @@
         <div class="tag" onclick="toggleTag(this,'분식')">🍢 분식</div>
       </div>
 
-      <div class="form-row" style="margin-top:12px;">
+      <div class="form-row" style="margin-top:12px; align-items:flex-end;">
         <div class="form-group">
           <label>정렬 방식</label>
-          <select id="recommendSort">
-            <option value="random" selected>랜덤 추천</option>
-            <option value="priceAsc">가격 낮은순</option>
+          <select id="recommendSort" onchange="renderAllStores()">
+            <option value="priceAsc" selected>가격 낮은순</option>
             <option value="priceDesc">가격 높은순</option>
-            <option value="minOrderAsc">최소주문 낮은순</option>
           </select>
         </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:.85rem;color:var(--text);cursor:pointer;text-transform:none;letter-spacing:0;">
+          <input type="checkbox" id="showAllStores" style="width:auto;accent-color:var(--accent);">
+          가능한 가게 모두 보기
+        </label>
       </div>
 
       <div class="btn-row">
@@ -793,6 +795,7 @@ function toggleTag(el, cat) {
   document.querySelectorAll('#categoryTags .tag').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
   selectedCategory = cat;
+  renderAllStores();
 }
 
 function sortMenus(list, sortType) {
@@ -821,59 +824,75 @@ function pickRandomItems(arr, limit) {
     .slice(0, limit);
 }
 
+function renderAllStores() {
+  const result = document.getElementById('recommendResult');
+  if (!result) return;
+  const sortMode = document.getElementById('recommendSort')?.value || 'priceAsc';
+  const filtered = MENUS.filter(m => selectedCategory === '전체' || m.category === selectedCategory);
+  const stores = sortMenus(filtered, sortMode);
+  const categoryLabel = selectedCategory === '전체' ? '전체 카테고리' : selectedCategory;
+
+  let html = `<div class="result-box fadeIn">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <span style="font-size:1.4rem;">🍽️</span>
+      <div>
+        <div style="font-weight:800;font-size:1rem;">${escapeHtml(categoryLabel)} 가게 목록</div>
+        <div style="color:var(--muted);font-size:.82rem;margin-top:2px;">추천받기 전에는 전체 가게를 보여줍니다 · ${stores.length}개</div>
+      </div>
+    </div>`;
+
+  if (!stores.length) {
+    html += `<div class="notice">⚠️ 선택한 카테고리에 등록된 가게가 없습니다.</div>`;
+  } else {
+    html += `<div class="menu-grid">`;
+    stores.forEach(m => { html += renderMenuCard(m); });
+    html += `</div>`;
+  }
+  html += `</div>`;
+  result.innerHTML = html;
+}
+
 function recommendMenus() {
   const budget = parseInt(document.getElementById('myBudget').value) || 15000;
+  const sortMode = document.getElementById('recommendSort')?.value || 'priceAsc';
+  const showAll = document.getElementById('showAllStores')?.checked || false;
   const limit = 5;
-  const sortMode = document.getElementById('recommendSort')?.value || 'random';
 
-  let filtered = MENUS.filter(m => selectedCategory === '전체' || m.category === selectedCategory);
+  const filtered = MENUS.filter(m => selectedCategory === '전체' || m.category === selectedCategory);
+  const possibleStores = filtered.filter(m => m.price <= budget);
 
-  const withinBudget = filtered.filter(m => m.price <= budget);
-  const minOrderOnly = filtered.filter(m => m.price <= budget && m.minOrder > budget);
-  const overBudget = filtered.filter(m => m.price > budget && m.price <= budget * 1.3);
-  const sortAndPick = (arr, maxCount) => {
+  const sortPicked = (arr) => {
     const copied = [...arr];
-    if (sortMode === 'priceAsc') copied.sort((a, b) => a.price - b.price);
-    else if (sortMode === 'priceDesc') copied.sort((a, b) => b.price - a.price);
-    else if (sortMode === 'minOrderAsc') copied.sort((a, b) => a.minOrder - b.minOrder);
-    else copied.sort(() => Math.random() - 0.5);
-    return copied.slice(0, maxCount);
+    if (sortMode === 'priceDesc') copied.sort((a, b) => b.price - a.price || a.name.localeCompare(b.name, 'ko'));
+    else copied.sort((a, b) => a.price - b.price || a.name.localeCompare(b.name, 'ko'));
+    return copied;
   };
-  const pickedWithinBudget = sortAndPick(withinBudget, limit);
-  const pickedOverBudget = sortAndPick(overBudget, Math.min(3, limit));
+
+  const pickedStores = showAll
+    ? sortPicked(possibleStores)
+    : sortPicked(pickRandomItems(possibleStores, limit));
+
   const categoryLabel = selectedCategory === '전체' ? '전체 카테고리' : selectedCategory;
+  const modeText = showAll ? '가능한 가게 전체 보기' : `랜덤 ${Math.min(limit, possibleStores.length)}개 추천`;
 
   let html = `<div class="result-box success fadeIn">
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
       <span style="font-size:1.4rem;">✨</span>
       <div>
-        <div style="font-weight:800;font-size:1rem;">예산 <span style="color:var(--accent);font-family:'Space Mono',monospace;">${budget.toLocaleString()}원</span> 기준 랜덤 추천</div>
-        <div style="color:var(--muted);font-size:.82rem;margin-top:2px;">${escapeHtml(categoryLabel)} · 조건 해당 ${filtered.length}개 · 예산 내 ${withinBudget.length}개 중 ${pickedWithinBudget.length}개 표시</div>
+        <div style="font-weight:800;font-size:1rem;">예산 <span style="color:var(--accent);font-family:'Space Mono',monospace;">${budget.toLocaleString()}원</span> 기준 추천</div>
+        <div style="color:var(--muted);font-size:.82rem;margin-top:2px;">${escapeHtml(categoryLabel)} · 예산 내 가능 ${possibleStores.length}개 · ${modeText}</div>
       </div>
     </div>`;
 
   if (filtered.length === 0) {
-    html += `<div class="notice">⚠️ 조건에 맞는 식당이 없습니다. 카테고리나 예산을 바꿔보세요.</div>`;
-  } else if (withinBudget.length === 0) {
+    html += `<div class="notice">⚠️ 조건에 맞는 식당이 없습니다. 카테고리를 바꿔보세요.</div>`;
+  } else if (possibleStores.length === 0) {
     html += `<div class="notice">⚠️ 선택한 조건에서 예산 안에 들어오는 식당이 없습니다. 예산을 늘리거나 카테고리를 바꿔보세요.</div>`;
   } else {
     html += `<div style="font-weight:700;margin-bottom:10px;color:var(--green);">✅ 추천 식당</div>`;
     html += `<div class="menu-grid">`;
-    pickedWithinBudget.forEach(m => {
-      const shortage = Math.max(0, m.minOrder - budget);
-      const extra = shortage > 0 ? `<div class="notice" style="margin-top:10px;padding:8px 10px;font-size:.75rem;">최소주문까지 ${shortage.toLocaleString()}원 부족 → 팟 모집 추천</div>` : '';
-      html += renderMenuCard(m, extra);
-    });
-    html += `</div>`;
-  }
-
-  if (overBudget.length > 0) {
-    html += `<div class="divider"></div>
-      <div style="font-weight:700;margin-bottom:10px;color:var(--accent2);">💡 조금 더 내면 가능한 식당</div>
-      <div class="menu-grid">`;
-    pickedOverBudget.forEach(m => {
-      const diff = m.price - budget;
-      html += renderMenuCard(m, `<div class="category" style="margin-top:6px;color:var(--accent2);">예산보다 +${diff.toLocaleString()}원</div>`);
+    pickedStores.forEach(m => {
+      html += renderMenuCard(m);
     });
     html += `</div>`;
   }
@@ -884,11 +903,12 @@ function recommendMenus() {
 
 function resetRecommend() {
   document.getElementById('myBudget').value = '15000';
-  if (document.getElementById('recommendSort')) document.getElementById('recommendSort').value = 'random';
+  if (document.getElementById('recommendSort')) document.getElementById('recommendSort').value = 'priceAsc';
+  if (document.getElementById('showAllStores')) document.getElementById('showAllStores').checked = false;
   document.querySelectorAll('#categoryTags .tag').forEach(t => t.classList.remove('active'));
   document.querySelector('#categoryTags .tag').classList.add('active');
   selectedCategory = '전체';
-  document.getElementById('recommendResult').innerHTML = '';
+  renderAllStores();
 }
 
 // ══════════════════════════════════════
@@ -897,6 +917,8 @@ function resetRecommend() {
 const API_BASE = '/api';
 let boardFilter = '전체';
 let cachedPosts = [];
+const chatTimers = {};
+const chatCache = {};
 
 function getAuth() {
   try { return JSON.parse(localStorage.getItem('baedalpot_user') || 'null'); }
@@ -1056,20 +1078,46 @@ async function toggleChat(id) {
   if (box.style.display === 'none' || !box.style.display) {
     box.style.display = 'block';
     await loadMessages(id);
+    startChatLive(id);
   } else {
     box.style.display = 'none';
+    stopChatLive(id);
   }
 }
-async function loadMessages(id) {
+function startChatLive(id) {
+  stopChatLive(id);
+  chatTimers[id] = setInterval(() => {
+    const box = document.getElementById(`chat-${id}`);
+    if (!box || box.style.display === 'none') {
+      stopChatLive(id);
+      return;
+    }
+    loadMessages(id, true);
+  }, 1500);
+}
+function stopChatLive(id) {
+  if (chatTimers[id]) {
+    clearInterval(chatTimers[id]);
+    delete chatTimers[id];
+  }
+}
+async function loadMessages(id, silent = false) {
   const el = document.getElementById(`chatMessages-${id}`);
   if (!el) return;
-  el.innerHTML = '<div class="chat-empty">불러오는 중...</div>';
+  if (!silent) el.innerHTML = '<div class="chat-empty">불러오는 중...</div>';
   try {
     const messages = await apiRequest(`${API_BASE}/posts/${id}/messages`);
-    if (!messages.length) { el.innerHTML = '<div class="chat-empty">아직 채팅이 없습니다.</div>'; return; }
-    el.innerHTML = messages.map(m => `<div class="chat-msg"><strong>${escapeHtml(m.nickname)}</strong>${escapeHtml(m.message)}</div>`).join('');
-    el.scrollTop = el.scrollHeight;
-  } catch (e) { el.innerHTML = `<div class="chat-empty">${escapeHtml(e.message)}</div>`; }
+    let html = '';
+    if (!messages.length) html = '<div class="chat-empty">아직 채팅이 없습니다.</div>';
+    else html = messages.map(m => `<div class="chat-msg"><strong>${escapeHtml(m.nickname)}</strong>${escapeHtml(m.message)}</div>`).join('');
+    if (chatCache[id] !== html) {
+      chatCache[id] = html;
+      el.innerHTML = html;
+      el.scrollTop = el.scrollHeight;
+    }
+  } catch (e) {
+    if (!silent) el.innerHTML = `<div class="chat-empty">${escapeHtml(e.message)}</div>`;
+  }
 }
 async function sendMessage(id) {
   const input = document.getElementById(`chatInput-${id}`);
@@ -1136,7 +1184,7 @@ async function renderBoard() {
       <button class="join-btn" style="color:var(--accent2);border-color:rgba(255,204,0,.3);" onclick="toggleChat('${p.id}')" ${chatDisabled ? 'disabled title="참여 중인 모집글에서만, 마감 전까지 채팅할 수 있어요"' : ''}>💬 채팅</button>
       ${mine ? `<button class="join-btn" style="color:#e53935;border-color:rgba(229,57,53,.35);" onclick="deletePost('${p.id}')">🗑 글 삭제</button>` : ''}
       <div class="chat-box" id="chat-${p.id}" style="display:none;">
-        <div class="chat-head"><span class="chat-title">팟 채팅</span><button class="remove-btn" onclick="loadMessages('${p.id}')">새로고침</button></div>
+        <div class="chat-head"><span class="chat-title">팟 채팅</span></div>
         <div class="chat-messages" id="chatMessages-${p.id}"></div>
         <div class="chat-form">
           <input type="text" id="chatInput-${p.id}" placeholder="메시지 입력" maxlength="300" onkeydown="if(event.key==='Enter') sendMessage('${p.id}')">
@@ -1167,6 +1215,7 @@ function showToast(msg, err = false) {
 
 // Initial render
 restoreActiveTab();
+renderAllStores();
 </script>
 </body>
 </html>
