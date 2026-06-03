@@ -466,19 +466,27 @@
   <!-- ══════════════════ PAGE 3: 모집 게시판 ══════════════════ -->
   <div id="page-board" class="page">
     <div class="board-layout">
-
-      <!-- 글쓰기 사이드바 -->
       <div class="board-sidebar">
         <div class="card">
-          <div class="card-title">📮 팟 모집 글 올리기</div>
+          <div class="card-title">🔐 회원가입 / 로그인</div>
+          <div id="loginStatus" class="notice" style="margin-bottom:12px;">로그인하면 팟 생성, 참여, 채팅을 사용할 수 있어요.</div>
           <div class="form-group" style="margin-bottom:10px;">
-            <label>닉네임</label>
-            <input type="text" id="bNick" placeholder="예: 이해인" maxlength="10">
+            <label>이름</label>
+            <input type="text" id="authName" placeholder="예: 변민석" maxlength="20">
           </div>
-          <div class="form-group" style="margin-bottom:10px;">
+          <div class="form-group" style="margin-bottom:12px;">
             <label>비밀번호</label>
-            <input type="password" id="bPassword" placeholder="삭제용 비밀번호" maxlength="20">
+            <input type="password" id="authPassword" placeholder="4자리 이상" maxlength="30">
           </div>
+          <div class="btn-row" style="margin-top:0;">
+            <button class="btn" onclick="signup()">회원가입</button>
+            <button class="btn secondary" onclick="login()">로그인</button>
+            <button class="btn secondary" onclick="logout()">로그아웃</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📮 팟 모집 글 올리기</div>
           <div class="form-group" style="margin-bottom:10px;">
             <label>카테고리</label>
             <select id="bCat">
@@ -507,28 +515,18 @@
               <option value="4">4명</option>
             </select>
           </div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label>마감시간</label>
+            <input type="datetime-local" id="bDeadline">
+          </div>
           <div class="form-group" style="margin-bottom:14px;">
             <label>한마디 (선택)</label>
             <textarea id="bMsg" placeholder="예: 저녁 6시 이후 주문 원해요~"></textarea>
           </div>
           <button class="btn" onclick="submitPost()">📮 모집 글 올리기</button>
         </div>
-
-        <div class="card">
-          <div class="card-title">🗑 내 글 삭제</div>
-          <div class="form-group" style="margin-bottom:10px;">
-            <label>닉네임 확인</label>
-            <input type="text" id="bDeleteNick" placeholder="닉네임 입력">
-          </div>
-          <div class="form-group" style="margin-bottom:10px;">
-            <label>비밀번호 확인</label>
-            <input type="password" id="bDeletePassword" placeholder="글 작성 시 비밀번호">
-          </div>
-          <button class="btn secondary" onclick="deleteMyPosts()" style="width:100%;">내 글 전체 삭제</button>
-        </div>
       </div>
 
-      <!-- 게시판 본문 -->
       <div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;">
           <div style="font-weight:800;font-size:1.05rem;">모집 중인 팟 <span id="boardCount" style="background:var(--accent);color:#fff;padding:1px 9px;border-radius:20px;font-size:.8rem;margin-left:4px;">0</span></div>
@@ -692,21 +690,78 @@ function resetRecommend() {
 }
 
 // ══════════════════════════════════════
-// BOARD (server API)
+// BOARD (server API + simple auth)
 // ══════════════════════════════════════
 const API_BASE = '/api';
 let boardFilter = '전체';
 let cachedPosts = [];
-const joinedKey = 'baedalpot_joined_posts';
 
+function getAuth() {
+  try { return JSON.parse(localStorage.getItem('baedalpot_user') || 'null'); }
+  catch(e) { return null; }
+}
+function setAuth(user) {
+  localStorage.setItem('baedalpot_user', JSON.stringify(user));
+  updateLoginStatus();
+}
+function clearAuth() {
+  localStorage.removeItem('baedalpot_user');
+  updateLoginStatus();
+}
+function authHeaders() {
+  const user = getAuth();
+  if (!user) return {};
+  return { 'Authorization': `Bearer ${user.token}`, 'X-User-Id': String(user.id) };
+}
 async function apiRequest(url, options = {}) {
   const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders(), ...(options.headers || {}) },
     ...options
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || '서버 요청 실패');
   return data;
+}
+function updateLoginStatus() {
+  const user = getAuth();
+  const el = document.getElementById('loginStatus');
+  if (!el) return;
+  if (user) {
+    el.innerHTML = `✅ <strong>${escapeHtml(user.name)}</strong>님으로 로그인 중`;
+    const nameInput = document.getElementById('authName');
+    if (nameInput) nameInput.value = user.name;
+  } else {
+    el.textContent = '로그인하면 팟 생성, 참여, 채팅을 사용할 수 있어요.';
+  }
+}
+async function signup() {
+  const name = document.getElementById('authName').value.trim();
+  const password = document.getElementById('authPassword').value.trim();
+  if (!name || !password) { showToast('이름과 비밀번호를 입력해주세요', true); return; }
+  try {
+    const user = await apiRequest(`${API_BASE}/auth/signup`, { method:'POST', body: JSON.stringify({ name, password }) });
+    setAuth(user);
+    document.getElementById('authPassword').value = '';
+    showToast('회원가입 및 로그인 완료');
+    await renderBoard();
+  } catch(e) { showToast(e.message, true); }
+}
+async function login() {
+  const name = document.getElementById('authName').value.trim();
+  const password = document.getElementById('authPassword').value.trim();
+  if (!name || !password) { showToast('이름과 비밀번호를 입력해주세요', true); return; }
+  try {
+    const user = await apiRequest(`${API_BASE}/auth/login`, { method:'POST', body: JSON.stringify({ name, password }) });
+    setAuth(user);
+    document.getElementById('authPassword').value = '';
+    showToast('로그인 완료');
+    await renderBoard();
+  } catch(e) { showToast(e.message, true); }
+}
+function logout() {
+  clearAuth();
+  showToast('로그아웃 완료');
+  renderBoard();
 }
 
 async function getBoardPosts() {
@@ -714,7 +769,6 @@ async function getBoardPosts() {
   cachedPosts = await apiRequest(`${API_BASE}/posts${q}`);
   return cachedPosts;
 }
-
 function timeAgo(ts) {
   const m = Math.floor((Date.now() - ts) / 60000);
   if (m < 1) return '방금 전';
@@ -723,23 +777,30 @@ function timeAgo(ts) {
   if (h < 24) return h + '시간 전';
   return Math.floor(h / 24) + '일 전';
 }
-
+function formatDeadline(ts) {
+  if (!ts) return '마감 없음';
+  const d = new Date(ts);
+  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+function deadlineToISO(localValue) {
+  if (!localValue) return '';
+  const d = new Date(localValue);
+  return d.toISOString();
+}
 async function submitPost() {
-  const nick = document.getElementById('bNick').value.trim();
-  const password = document.getElementById('bPassword').value.trim();
-  if (!nick) { showToast('닉네임을 입력해주세요', true); return; }
-  if (!password) { showToast('비밀번호를 입력해주세요', true); return; }
-
+  const user = getAuth();
+  if (!user) { showToast('글을 올리려면 로그인해주세요', true); return; }
+  const deadline = document.getElementById('bDeadline').value;
+  if (!deadline) { showToast('마감시간을 설정해주세요', true); return; }
   try {
     await apiRequest(`${API_BASE}/posts`, {
       method: 'POST',
       body: JSON.stringify({
-        author: nick,
-        password: password,
         cat: document.getElementById('bCat').value,
         menu: document.getElementById('bMenu').value.trim(),
         budget: parseInt(document.getElementById('bBudget').value) || 15000,
         size: parseInt(document.getElementById('bSize').value),
+        deadline_at: deadlineToISO(deadline),
         msg: document.getElementById('bMsg').value.trim()
       })
     });
@@ -747,62 +808,35 @@ async function submitPost() {
     document.getElementById('bMsg').value = '';
     await renderBoard();
     showToast('팟 모집 글이 올라갔어요! 🎉');
-  } catch (e) {
-    showToast(e.message, true);
-  }
+  } catch (e) { showToast(e.message, true); }
 }
-
-function getJoinedPosts() {
-  try { return JSON.parse(localStorage.getItem(joinedKey) || '[]'); }
-  catch(e) { return []; }
-}
-function rememberJoinedPost(id) {
-  const joined = getJoinedPosts();
-  if (!joined.includes(String(id))) joined.push(String(id));
-  localStorage.setItem(joinedKey, JSON.stringify(joined));
-}
-
 async function joinPost(id) {
-  const nick = document.getElementById('bNick').value.trim();
-  if (!nick) { showToast('참여하려면 왼쪽 닉네임을 입력해주세요', true); return; }
-  if (getJoinedPosts().includes(String(id))) { showToast('이미 이 팟에 참여했습니다.', true); return; }
+  if (!getAuth()) { showToast('참여하려면 로그인해주세요', true); return; }
   try {
-    await apiRequest(`${API_BASE}/posts/${id}/join`, {
-      method: 'POST',
-      body: JSON.stringify({ nickname: nick })
-    });
-    rememberJoinedPost(id);
+    await apiRequest(`${API_BASE}/posts/${id}/join`, { method:'POST', body: JSON.stringify({}) });
     await renderBoard();
     showToast('팟에 참여했어요! 🙌');
-  } catch (e) {
-    showToast(e.message, true);
-  }
+  } catch(e) { showToast(e.message, true); }
 }
-
-async function deleteMyPosts() {
-  const nick = document.getElementById('bDeleteNick').value.trim();
-  const password = document.getElementById('bDeletePassword').value.trim();
-  if (!nick) { showToast('닉네임을 입력해주세요', true); return; }
-  if (!password) { showToast('비밀번호를 입력해주세요', true); return; }
-
+async function deletePost(id) {
+  if (!getAuth()) { showToast('삭제하려면 로그인해주세요', true); return; }
+  if (!confirm('이 모집글을 삭제할까요?')) return;
   try {
-    const result = await apiRequest(`${API_BASE}/posts?author=${encodeURIComponent(nick)}&password=${encodeURIComponent(password)}`, { method: 'DELETE' });
-    if (!result.deleted) { showToast(result.error || '닉네임 또는 비밀번호가 일치하지 않아요', true); return; }
+    await apiRequest(`${API_BASE}/posts/${id}`, { method:'DELETE' });
     await renderBoard();
-    showToast(`"${nick}" 글 ${result.deleted}개 삭제됐어요`);
-  } catch (e) {
-    showToast(e.message, true);
-  }
+    showToast('게시글이 삭제됐어요');
+  } catch(e) { showToast(e.message, true); }
 }
-
 function setBoardFilter(cat, el) {
   boardFilter = cat;
   document.querySelectorAll('.board-filter').forEach(b => b.classList.remove('on'));
   el.classList.add('on');
   renderBoard();
 }
-
-
+function isParticipant(post, user) {
+  if (!user) return false;
+  return (post.participants || []).some(x => String(x.user_id) === String(user.id));
+}
 async function toggleChat(id) {
   const box = document.getElementById(`chat-${id}`);
   if (!box) return;
@@ -813,95 +847,81 @@ async function toggleChat(id) {
     box.style.display = 'none';
   }
 }
-
 async function loadMessages(id) {
   const el = document.getElementById(`chatMessages-${id}`);
   if (!el) return;
   el.innerHTML = '<div class="chat-empty">불러오는 중...</div>';
   try {
     const messages = await apiRequest(`${API_BASE}/posts/${id}/messages`);
-    if (!messages.length) {
-      el.innerHTML = '<div class="chat-empty">아직 채팅이 없습니다.</div>';
-      return;
-    }
+    if (!messages.length) { el.innerHTML = '<div class="chat-empty">아직 채팅이 없습니다.</div>'; return; }
     el.innerHTML = messages.map(m => `<div class="chat-msg"><strong>${escapeHtml(m.nickname)}</strong>${escapeHtml(m.message)}</div>`).join('');
     el.scrollTop = el.scrollHeight;
-  } catch (e) {
-    el.innerHTML = `<div class="chat-empty">${e.message}</div>`;
-  }
+  } catch (e) { el.innerHTML = `<div class="chat-empty">${escapeHtml(e.message)}</div>`; }
 }
-
 async function sendMessage(id) {
-  const nick = document.getElementById('bNick').value.trim();
   const input = document.getElementById(`chatInput-${id}`);
   const message = input ? input.value.trim() : '';
-  if (!nick) { showToast('채팅하려면 왼쪽 닉네임을 입력해주세요', true); return; }
+  if (!getAuth()) { showToast('채팅하려면 로그인해주세요', true); return; }
   if (!message) { showToast('메시지를 입력해주세요', true); return; }
   try {
-    await apiRequest(`${API_BASE}/posts/${id}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({ nickname: nick, message })
-    });
+    await apiRequest(`${API_BASE}/posts/${id}/messages`, { method:'POST', body: JSON.stringify({ message }) });
     input.value = '';
     await loadMessages(id);
-  } catch (e) {
-    showToast(e.message, true);
-  }
+  } catch(e) { showToast(e.message, true); }
 }
-
 function escapeHtml(text) {
   return String(text || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
 }
-
 async function renderBoard() {
+  updateLoginStatus();
   const el = document.getElementById('boardList');
+  if (!el) return;
   el.innerHTML = `<div class="board-empty"><span class="big">⏳</span>게시글을 불러오는 중...</div>`;
-
   let list = [];
-  try {
-    list = await getBoardPosts();
-  } catch (e) {
+  try { list = await getBoardPosts(); }
+  catch(e) {
     document.getElementById('boardCount').textContent = '0';
-    el.innerHTML = `<div class="board-empty"><span class="big">⚠️</span>서버에 연결할 수 없어요.<br>${e.message}</div>`;
+    el.innerHTML = `<div class="board-empty"><span class="big">⚠️</span>서버에 연결할 수 없어요.<br>${escapeHtml(e.message)}</div>`;
     return;
   }
-
   document.getElementById('boardCount').textContent = list.length;
   if (list.length === 0) {
     el.innerHTML = `<div class="board-empty"><span class="big">🍽️</span>${boardFilter === '전체' ? '아직 모집 글이 없어요. 첫 번째 팟을 만들어보세요!' : boardFilter + ' 카테고리 글이 없어요'}</div>`;
     return;
   }
-  const myNick = document.getElementById('bNick').value.trim();
+  const user = getAuth();
   const catColors = {치킨:'#ff9f43',피자:'#ee5a24',중식:'#f9ca24',한식:'#6ab04c',분식:'#e056fd',버거:'#30336b',일식:'#22a6b3'};
   el.innerHTML = list.map(p => {
     const pct = Math.round(p.joined / p.size * 100);
     const isFull = p.joined >= p.size;
-    const isMine = myNick && p.author === myNick;
-    const alreadyJoined = getJoinedPosts().includes(String(p.id));
-    const fillClass = pct >= 100 ? 'full-fill' : pct >= 67 ? 'almost' : '';
+    const mine = user && String(p.user_id) === String(user.id);
+    const participant = isParticipant(p, user);
+    const expired = !!p.expired;
+    const fillClass = (isFull || expired) ? 'full-fill' : pct >= 67 ? 'almost' : '';
     const col = catColors[p.cat] || 'var(--accent)';
-    return `<div class="post-card${isFull ? ' post-full' : ''}">
+    const chatDisabled = !participant || expired;
+    return `<div class="post-card${(isFull || expired) ? ' post-full' : ''}">
       <div class="post-top">
-        <div style="display:flex;align-items:center;gap:7px;">
-          <span class="post-cat-badge" style="background:${col}22;color:${col};">${p.cat}</span>
-          ${isMine ? '<span class="my-badge">내 글</span>' : ''}
+        <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+          <span class="post-cat-badge" style="background:${col}22;color:${col};">${escapeHtml(p.cat)}</span>
+          ${mine ? '<span class="my-badge">내 글</span>' : ''}
+          ${participant ? '<span class="my-badge">참여 중</span>' : ''}
         </div>
         <span class="post-time">${timeAgo(p.ts)}</span>
       </div>
-      <div class="post-title">${p.menu || p.cat + ' 팟 모집'}</div>
-      ${p.msg ? `<div class="post-msg">${p.msg}</div>` : ''}
+      <div class="post-title">${escapeHtml(p.menu || p.cat + ' 팟 모집')}</div>
+      ${p.msg ? `<div class="post-msg">${escapeHtml(p.msg)}</div>` : ''}
       <div class="post-chips">
-        <div class="chip">👤 <strong>${p.author}</strong></div>
+        <div class="chip">👤 <strong>${escapeHtml(p.author)}</strong></div>
         <div class="chip">💰 <strong>${p.budget.toLocaleString()}원</strong>/인</div>
-        <div class="chip">📦 합계 ${(p.budget * p.size).toLocaleString()}원+</div>
+        <div class="chip">⏰ <strong>${formatDeadline(p.deadline_ts)}</strong></div>
+        <div class="chip">참여자: ${(p.participants||[]).map(x=>escapeHtml(x.nickname)).join(', ') || '-'}</div>
       </div>
       <div class="progress-bar"><div class="progress-fill ${fillClass}" style="width:${Math.min(pct,100)}%"></div></div>
-      <div class="progress-label"><span>참여 ${p.joined}/${p.size}명</span><span>${isFull ? '🔴 마감' : '🟢 모집 중'}</span></div>
-      ${!isFull
-        ? `<button class="join-btn" onclick="joinPost('${p.id}')" ${(isMine || alreadyJoined) ? 'disabled' : ''}>
-            ${isMine ? '✏️ 내 글' : alreadyJoined ? '✅ 참여 완료' : '✅ 참여하기'}</button>`
-        : `<button class="join-btn" disabled>마감됨</button>`}
-      <button class="join-btn" style="color:var(--accent2);border-color:rgba(255,204,0,.3);" onclick="toggleChat('${p.id}')">💬 채팅</button>
+      <div class="progress-label"><span>참여 ${p.joined}/${p.size}명</span><span>${expired ? '⏰ 마감시간 지남' : isFull ? '🔴 인원 마감' : '🟢 모집 중'}</span></div>
+      ${(!isFull && !expired && !mine && !participant) ? `<button class="join-btn" onclick="joinPost('${p.id}')">✅ 참여하기</button>` : `<button class="join-btn" disabled>${mine ? '✏️ 내 글' : participant ? '✅ 참여 완료' : expired ? '마감됨' : '마감됨'}</button>`}
+      <button class="join-btn" style="color:var(--accent2);border-color:rgba(255,204,0,.3);" onclick="toggleChat('${p.id}')" ${chatDisabled ? 'disabled title="참여 중인 모집글에서만, 마감 전까지 채팅할 수 있어요"' : ''}>💬 채팅</button>
+      ${mine ? `<button class="join-btn" style="color:#e53935;border-color:rgba(229,57,53,.35);" onclick="deletePost('${p.id}')">🗑 글 삭제</button>` : ''}
       <div class="chat-box" id="chat-${p.id}" style="display:none;">
         <div class="chat-head"><span class="chat-title">팟 채팅</span><button class="remove-btn" onclick="loadMessages('${p.id}')">새로고침</button></div>
         <div class="chat-messages" id="chatMessages-${p.id}"></div>
@@ -913,6 +933,15 @@ async function renderBoard() {
     </div>`;
   }).join('');
 }
+function setDefaultDeadline() {
+  const el = document.getElementById('bDeadline');
+  if (!el || el.value) return;
+  const d = new Date(Date.now() + 60 * 60 * 1000);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  el.value = d.toISOString().slice(0,16);
+}
+setDefaultDeadline();
+updateLoginStatus();
 
 function showToast(msg, err = false) {
   const t = document.createElement('div');
