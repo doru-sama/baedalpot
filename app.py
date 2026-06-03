@@ -147,9 +147,7 @@ def signup():
         return jsonify({"error": "이름은 20자 이내로 입력해주세요."}), 400
     if len(password) < 4:
         return jsonify({"error": "비밀번호는 4자리 이상으로 입력해주세요."}), 400
-    exists = supabase.table("users").select("id").eq("name", name).limit(1).execute()
-    if exists.data:
-        return jsonify({"error": "이미 사용 중인 이름입니다."}), 409
+    # 같은 이름도 가입할 수 있게 중복 검사를 하지 않습니다.
     salt, digest = hash_password(password)
     result = supabase.table("users").insert({"name": name, "password_salt": salt, "password_hash": digest}).execute()
     if not result.data:
@@ -166,13 +164,16 @@ def login():
     body = request.get_json(silent=True) or {}
     name = str(body.get("name", "")).strip()
     password = str(body.get("password", "")).strip()
-    found = supabase.table("users").select("id,name,password_salt,password_hash").eq("name", name).limit(1).execute()
+    found = supabase.table("users").select("id,name,password_salt,password_hash").eq("name", name).execute()
     if not found.data:
         return jsonify({"error": "이름 또는 비밀번호가 일치하지 않습니다."}), 401
-    user = found.data[0]
-    if not check_password(password, user.get("password_salt"), user.get("password_hash")):
-        return jsonify({"error": "이름 또는 비밀번호가 일치하지 않습니다."}), 401
-    return jsonify({"id": str(user["id"]), "name": user["name"], "token": make_token(user["id"], user["password_hash"])})
+
+    # 이름 중복 가입을 허용하므로, 같은 이름의 계정들 중 비밀번호가 맞는 계정을 찾습니다.
+    for user in found.data:
+        if check_password(password, user.get("password_salt"), user.get("password_hash")):
+            return jsonify({"id": str(user["id"]), "name": user["name"], "token": make_token(user["id"], user["password_hash"])})
+
+    return jsonify({"error": "이름 또는 비밀번호가 일치하지 않습니다."}), 401
 
 
 @app.route("/api/posts", methods=["GET"])
