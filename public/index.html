@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>배달팟 🍜 공동주문 모집 & 메뉴 추천</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;800;900&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1f1f1f;
+    --border: #2a2a2a;
+    --accent: #ff5c00;
+    --accent2: #ffcc00;
+    --green: #00e676;
+    --blue: #40c4ff;
+    --text: #f0f0f0;
+    --muted: #888;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  header {
+    background: var(--surface);
+    border-bottom: 2px solid var(--accent);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo {
+    font-family: 'Space Mono', monospace;
+    font-size: 1.5rem;
+    color: var(--accent);
+    letter-spacing: -1px;
+  }
+  .logo span { color: var(--accent2); }
+  header p { color: var(--muted); font-size: 0.85rem; }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+  }
+  .tab {
+    padding: 14px 28px;
+    cursor: pointer;
+    color: var(--muted);
+    font-size: 0.95rem;
+    font-weight: 600;
+    border-bottom: 3px solid transparent;
+    transition: all .2s;
+    user-select: none;
+  }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* ── LAYOUT ── */
+  .main { max-width: 1100px; margin: 0 auto; padding: 32px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent2);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── FORM ── */
+  .form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 140px; }
+  label { font-size: 0.8rem; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  input, select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 10px 14px;
+    font-size: 0.95rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color .2s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .2s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: #ff7733; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(255,92,0,.4); }
+  .btn.secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+  .btn.secondary:hover { border-color: var(--accent); color: var(--accent); box-shadow: none; }
+  .btn.green { background: var(--green); color: #000; }
+  .btn.green:hover { background: #33ee88; box-shadow: 0 4px 20px rgba(0,230,118,.3); }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+  /* ── MENU GRID ── */
+  .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .menu-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    transition: all .2s;
+    cursor: pointer;
+    position: relative;
+  }
+  .menu-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .menu-card.selected { border-color: var(--green); background: rgba(0,230,118,.06); }
+  .menu-card .emoji { font-size: 2rem; margin-bottom: 8px; }
+  .menu-card .name { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+  .menu-card .price { color: var(--accent); font-family: 'Space Mono', monospace; font-size: 0.9rem; }
+  .menu-card .category { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+  .menu-card .match-badge {
+    position: absolute; top: 10px; right: 10px;
+    background: var(--green); color: #000;
+    font-size: 0.65rem; font-weight: 800;
+    padding: 2px 7px; border-radius: 20px;
+  }
+
+  /* ── TAG PILLS ── */
+  .tags { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+  .tag {
+    padding: 5px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    transition: all .2s;
+    user-select: none;
+  }
+  .tag.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .tag:hover:not(.active) { border-color: var(--muted); }
+
+  /* ── RESULTS ── */
+  .result-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-top: 16px;
+  }
+  .result-box.success { border-color: var(--green); }
+  .result-box.warn { border-color: var(--accent2); }
+
+  /* ── POT SECTION ── */
+  .user-list { display: flex; flex-direction: column; gap: 10px; }
+  .user-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .user-avatar {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; font-weight: 800; color: #fff; flex-shrink: 0;
+  }
+  .user-info { flex: 1; }
+  .user-name { font-weight: 700; font-size: 0.9rem; }
+  .user-budget { color: var(--accent); font-family: 'Space Mono', monospace; font-size: 0.85rem; }
+  .user-category { font-size: 0.75rem; color: var(--muted); }
+  .remove-btn { background: none; border: 1px solid #333; color: var(--muted); padding: 5px 10px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+  .remove-btn:hover { border-color: #e53935; color: #e53935; }
+
+  /* ── POT MATCH RESULT ── */
+  .pot-result {
+    border: 2px solid var(--green);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-top: 16px;
+    background: rgba(0,230,118,.04);
+    animation: fadeIn .4s ease;
+  }
+  .pot-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .pot-title { font-size: 1.1rem; font-weight: 800; color: var(--green); }
+  .members-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .member-pill {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .stat-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    flex: 1; min-width: 120px;
+    text-align: center;
+  }
+  .stat-val { font-family: 'Space Mono', monospace; font-size: 1.1rem; color: var(--accent); font-weight: 700; }
+  .stat-label { font-size: 0.72rem; color: var(--muted); margin-top: 3px; }
+
+  /* ── CHART ── */
+  .chart-container { margin-top: 20px; }
+  .bar-chart { display: flex; flex-direction: column; gap: 10px; }
+  .bar-row { display: flex; align-items: center; gap: 12px; }
+  .bar-label { width: 100px; font-size: 0.82rem; color: var(--muted); text-align: right; flex-shrink: 0; }
+  .bar-track { flex: 1; background: var(--surface2); border-radius: 4px; height: 22px; overflow: hidden; }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    display: flex; align-items: center; padding-left: 8px;
+    font-size: 0.75rem; font-weight: 700;
+    transition: width 1s cubic-bezier(.4,0,.2,1);
+  }
+  .bar-count { width: 40px; font-size: 0.82rem; color: var(--muted); font-family: 'Space Mono', monospace; }
+
+  /* ── NOTICE ── */
+  .notice {
+    background: rgba(255,92,0,.08);
+    border: 1px solid rgba(255,92,0,.3);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 12px;
+  }
+  .notice strong { color: var(--accent2); }
+
+  /* ── EMPTY ── */
+  .empty { text-align: center; padding: 40px; color: var(--muted); }
+  .empty .big { font-size: 3rem; margin-bottom: 12px; }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  .fadeIn { animation: fadeIn .4s ease; }
+
+  /* ── DIVIDER ── */
+  .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+  /* ── STATUS BADGE ── */
+  .badge {
+    display: inline-flex; align-items: center;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 0.75rem; font-weight: 700;
+  }
+  .badge.green { background: rgba(0,230,118,.15); color: var(--green); }
+  .badge.orange { background: rgba(255,92,0,.15); color: var(--accent); }
+  .badge.yellow { background: rgba(255,204,0,.15); color: var(--accent2); }
+
+  /* ── TWO COL ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media(max-width: 700px) { .two-col { grid-template-columns: 1fr; } .main { padding: 16px; } }
+
+  /* ── RANGE ── */
+  input[type=range] {
+    padding: 0; height: 6px;
+    accent-color: var(--accent);
+  }
+  .range-val { font-family: 'Space Mono', monospace; color: var(--accent); font-weight: 700; font-size: 1rem; }
+
+  /* ── BOARD ── */
+  .board-layout { display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
+  @media(max-width:800px){ .board-layout { grid-template-columns: 1fr; } }
+  .board-sidebar { display: flex; flex-direction: column; gap: 14px; }
+  .board-list { display: flex; flex-direction: column; gap: 12px; }
+  .post-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px;
+    transition: all .2s;
+    animation: fadeIn .3s ease;
+  }
+  .post-card:hover { border-color: var(--accent); transform: translateX(3px); }
+  .post-card.post-full { opacity: .55; }
+  .post-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+  .post-cat-badge {
+    padding: 3px 11px; border-radius: 20px;
+    font-size: .72rem; font-weight: 800;
+    background: rgba(255,92,0,.15); color: var(--accent);
+    display: inline-flex; align-items: center; gap: 4px;
+  }
+  .post-time { font-size: .72rem; color: var(--muted); font-family: 'Space Mono', monospace; white-space: nowrap; }
+  .post-title { font-weight: 800; font-size: .97rem; margin-bottom: 5px; }
+  .post-msg { font-size: .82rem; color: var(--muted); margin-bottom: 10px; line-height: 1.5; }
+  .post-chips { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 10px; }
+  .chip { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 3px 10px; font-size: .75rem; color: var(--muted); }
+  .chip strong { color: var(--text); }
+  .progress-bar { height: 5px; background: var(--surface2); border-radius: 3px; overflow: hidden; margin: 8px 0 4px; }
+  .progress-fill { height: 100%; border-radius: 3px; background: var(--accent); transition: width .5s; }
+  .progress-fill.almost { background: var(--accent2); }
+  .progress-fill.full-fill { background: #e53935; }
+  .progress-label { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); }
+  .join-btn {
+    width: 100%; margin-top: 10px;
+    background: var(--surface2); color: var(--green);
+    border: 1px solid rgba(0,230,118,.3);
+    padding: 8px; border-radius: 8px;
+    font-size: .85rem; font-weight: 700;
+    cursor: pointer; font-family: inherit; transition: all .2s;
+  }
+  .join-btn:hover { background: rgba(0,230,118,.08); }
+  .join-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .my-badge { font-size: .7rem; background: rgba(255,204,0,.12); color: var(--accent2); border: 1px solid rgba(255,204,0,.25); padding: 2px 8px; border-radius: 20px; }
+  .board-empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .board-empty .big { font-size: 2.5rem; display: block; margin-bottom: 10px; }
+  .board-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .board-filter {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--muted); padding: 5px 13px; border-radius: 20px;
+    font-size: .78rem; font-weight: 600; cursor: pointer;
+    font-family: inherit; transition: all .15s;
+  }
+  .board-filter.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  textarea {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); padding: 10px 14px;
+    font-size: .9rem; font-family: inherit; outline: none;
+    resize: none; height: 65px; width: 100%;
+    transition: border-color .2s;
+  }
+  textarea:focus { border-color: var(--accent); }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 24px; right: 24px;
+    background: var(--surface); border: 1px solid var(--accent);
+    color: var(--text); padding: 12px 20px; border-radius: 10px;
+    font-size: .88rem; font-weight: 600; z-index: 9999;
+    animation: fadeIn .3s ease; box-shadow: 0 8px 30px rgba(0,0,0,.4);
+  }
+  .toast.err { border-color: #e53935; color: #e53935; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="logo">배달<span>팟</span>.zip</div>
+    <p>미래캠퍼스 공동주문 모집 & 메뉴 추천 앱 | ACE 8조</p>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('recommend')">🍽️ 메뉴 추천</div>
+
+  <div class="tab" onclick="showTab('board')">📋 모집 게시판</div>
+</div>
+
+<div class="main">
+
+  <!-- ══════════════════ PAGE 1: 메뉴 추천 ══════════════════ -->
+  <div id="page-recommend" class="page active">
+
+    <div class="card">
+      <div class="card-title">🎯 내 조건 입력</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>이름 (선택)</label>
+          <input type="text" id="myName" placeholder="예: 이해인" maxlength="10">
+        </div>
+        <div class="form-group">
+          <label>예산 (원)</label>
+          <input type="number" id="myBudget" placeholder="15000" min="0" step="500" value="15000">
+        </div>
+        <div class="form-group">
+          <label>최소주문금액 부담</label>
+          <select id="minOrderPref">
+            <option value="solo">혼자 채우기</option>
+            <option value="any">상관없음</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card-title" style="margin-top:8px;">🏷️ 카테고리 필터</div>
+      <div class="tags" id="categoryTags">
+        <div class="tag active" onclick="toggleTag(this,'전체')">전체</div>
+        <div class="tag" onclick="toggleTag(this,'치킨')">🍗 치킨</div>
+        <div class="tag" onclick="toggleTag(this,'피자')">🍕 피자</div>
+        <div class="tag" onclick="toggleTag(this,'중식')">🥡 중식</div>
+        <div class="tag" onclick="toggleTag(this,'한식')">🍱 한식</div>
+        <div class="tag" onclick="toggleTag(this,'분식')">🍜 분식</div>
+        <div class="tag" onclick="toggleTag(this,'버거')">🍔 버거</div>
+        <div class="tag" onclick="toggleTag(this,'일식')">🍣 일식</div>
+        <div class="tag" onclick="toggleTag(this,'카페')">☕ 카페/디저트</div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" onclick="recommendMenus()">🔍 메뉴 추천받기</button>
+        <button class="btn secondary" onclick="resetRecommend()">초기화</button>
+      </div>
+    </div>
+
+    <div id="recommendResult"></div>
+  </div>
+
+  <!-- ══════════════════ PAGE 3: 모집 게시판 ══════════════════ -->
+  <div id="page-board" class="page">
+    <div class="board-layout">
+
+      <!-- 글쓰기 사이드바 -->
+      <div class="board-sidebar">
+        <div class="card">
+          <div class="card-title">📮 팟 모집 글 올리기</div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label>닉네임</label>
+            <input type="text" id="bNick" placeholder="예: 이해인" maxlength="10">
+          </div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label>카테고리</label>
+            <select id="bCat">
+              <option value="치킨">🍗 치킨</option>
+              <option value="피자">🍕 피자</option>
+              <option value="중식">🥡 중식</option>
+              <option value="한식">🍱 한식</option>
+              <option value="분식">🍜 분식</option>
+              <option value="버거">🍔 버거</option>
+              <option value="일식">🍣 일식</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label>식당 / 메뉴 (선택)</label>
+            <input type="text" id="bMenu" placeholder="예: BBQ 황금올리브" maxlength="30">
+          </div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label>1인 예산 (원)</label>
+            <input type="number" id="bBudget" value="15000" step="500" min="1000">
+          </div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label>모집 인원</label>
+            <select id="bSize">
+              <option value="2">2명</option>
+              <option value="3" selected>3명</option>
+              <option value="4">4명</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:14px;">
+            <label>한마디 (선택)</label>
+            <textarea id="bMsg" placeholder="예: 저녁 6시 이후 주문 원해요~"></textarea>
+          </div>
+          <button class="btn" onclick="submitPost()">📮 모집 글 올리기</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🗑 내 글 삭제</div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label>닉네임 확인</label>
+            <input type="text" id="bDeleteNick" placeholder="닉네임 입력">
+          </div>
+          <button class="btn secondary" onclick="deleteMyPosts()" style="width:100%;">내 글 전체 삭제</button>
+        </div>
+
+        <div class="notice" style="background:rgba(255,92,0,.06);border-color:rgba(255,92,0,.2);border-radius:8px;padding:12px 14px;font-size:.8rem;color:var(--muted);line-height:1.6;">
+          💾 <strong style="color:var(--accent2);">저장 방식 안내</strong><br>
+          게시글은 이 브라우저의 localStorage에 저장됩니다. 같은 컴퓨터·같은 브라우저에서 새로고침해도 유지되지만, 다른 기기와는 공유되지 않아요.
+        </div>
+      </div>
+
+      <!-- 게시판 본문 -->
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+          <div style="font-weight:800;font-size:1.05rem;">모집 중인 팟 <span id="boardCount" style="background:var(--accent);color:#fff;padding:1px 9px;border-radius:20px;font-size:.8rem;margin-left:4px;">0</span></div>
+          <button class="btn secondary" style="padding:7px 16px;font-size:.82rem;" onclick="renderBoard()">↻ 새로고침</button>
+        </div>
+        <div class="board-filters" id="boardFilters">
+          <button class="board-filter on" onclick="setBoardFilter('전체',this)">전체</button>
+          <button class="board-filter" onclick="setBoardFilter('치킨',this)">🍗 치킨</button>
+          <button class="board-filter" onclick="setBoardFilter('피자',this)">🍕 피자</button>
+          <button class="board-filter" onclick="setBoardFilter('중식',this)">🥡 중식</button>
+          <button class="board-filter" onclick="setBoardFilter('한식',this)">🍱 한식</button>
+          <button class="board-filter" onclick="setBoardFilter('분식',this)">🍜 분식</button>
+          <button class="board-filter" onclick="setBoardFilter('버거',this)">🍔 버거</button>
+          <button class="board-filter" onclick="setBoardFilter('일식',this)">🍣 일식</button>
+        </div>
+        <div class="board-list" id="boardList"></div>
+      </div>
+    </div>
+  </div>
+
+
+
+</div>
+
+<script>
+// ══════════════════════════════════════
+// DATA
+// ══════════════════════════════════════
+const MENUS = [
+  // 치킨
+  { name:'후라이드 치킨', price:18000, category:'치킨', emoji:'🍗', minOrder:18000, deliveryFee:3000 },
+  { name:'양념치킨 반반', price:20000, category:'치킨', emoji:'🍗', minOrder:20000, deliveryFee:3000 },
+  { name:'간장치킨', price:19000, category:'치킨', emoji:'🍗', minOrder:18000, deliveryFee:2000 },
+  { name:'닭강정', price:15000, category:'치킨', emoji:'🍗', minOrder:15000, deliveryFee:2500 },
+  // 피자
+  { name:'페퍼로니 피자 L', price:24000, category:'피자', emoji:'🍕', minOrder:20000, deliveryFee:2000 },
+  { name:'콤비네이션 피자', price:26000, category:'피자', emoji:'🍕', minOrder:20000, deliveryFee:2000 },
+  { name:'불고기 피자 M', price:18000, category:'피자', emoji:'🍕', minOrder:15000, deliveryFee:3000 },
+  // 중식
+  { name:'짜장면', price:7000, category:'중식', emoji:'🥡', minOrder:10000, deliveryFee:2000 },
+  { name:'짬뽕', price:8000, category:'중식', emoji:'🥡', minOrder:10000, deliveryFee:2000 },
+  { name:'탕수육 (소)', price:18000, category:'중식', emoji:'🥡', minOrder:20000, deliveryFee:2500 },
+  { name:'마라탕', price:12000, category:'중식', emoji:'🥡', minOrder:15000, deliveryFee:3000 },
+  { name:'마라순코우', price:12000, category:'중식', emoji:'🥡', minOrder:12000, deliveryFee:1900 },
+  // 한식
+  { name:'비빔밥', price:8000, category:'한식', emoji:'🍱', minOrder:12000, deliveryFee:2000 },
+  { name:'된장찌개 정식', price:9000, category:'한식', emoji:'🍱', minOrder:12000, deliveryFee:2000 },
+  { name:'삼겹살 2인분', price:28000, category:'한식', emoji:'🍱', minOrder:25000, deliveryFee:0 },
+  { name:'제육볶음', price:10000, category:'한식', emoji:'🍱', minOrder:12000, deliveryFee:2000 },
+  // 분식
+  { name:'떡볶이 세트', price:9000, category:'분식', emoji:'🍜', minOrder:10000, deliveryFee:2000 },
+  { name:'김밥 + 라면', price:8000, category:'분식', emoji:'🍜', minOrder:8000, deliveryFee:1500 },
+  { name:'순대국', price:9000, category:'분식', emoji:'🍜', minOrder:9000, deliveryFee:2000 },
+  { name:'치즈떡볶이', price:11000, category:'분식', emoji:'🍜', minOrder:10000, deliveryFee:2000 },
+  // 버거
+  { name:'더블 버거 세트', price:10000, category:'버거', emoji:'🍔', minOrder:10000, deliveryFee:3000 },
+  { name:'치즈버거 + 감자튀김', price:9500, category:'버거', emoji:'🍔', minOrder:9000, deliveryFee:2500 },
+  { name:'닭가슴살 버거', price:8500, category:'버거', emoji:'🍔', minOrder:8000, deliveryFee:2000 },
+  // 일식
+  { name:'연어 초밥 8p', price:13000, category:'일식', emoji:'🍣', minOrder:15000, deliveryFee:3000 },
+  { name:'돈카츠 정식', price:11000, category:'일식', emoji:'🍣', minOrder:12000, deliveryFee:2500 },
+  { name:'라멘', price:10000, category:'일식', emoji:'🍣', minOrder:10000, deliveryFee:2000 },
+  // 카페
+  { name:'아메리카노 + 샌드위치', price:8500, category:'카페', emoji:'☕', minOrder:8000, deliveryFee:2000 },
+  { name:'케이크 세트', price:12000, category:'카페', emoji:'☕', minOrder:10000, deliveryFee:3000 },
+];
+
+
+let selectedCategory = '전체';
+
+// ══════════════════════════════════════
+// TAB
+// ══════════════════════════════════════
+function showTab(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  const tab = event && event.currentTarget ? event.currentTarget : document.querySelector(`.tab[onclick*="${name}"]`);
+  if (tab) tab.classList.add('active');
+  if (name === 'board') renderBoard();
+}
+
+// ══════════════════════════════════════
+// MENU RECOMMEND
+// ══════════════════════════════════════
+function toggleTag(el, cat) {
+  document.querySelectorAll('#categoryTags .tag').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  selectedCategory = cat;
+}
+
+function recommendMenus() {
+  const budget = parseInt(document.getElementById('myBudget').value) || 15000;
+  const pref = document.getElementById('minOrderPref').value;
+  const name = document.getElementById('myName').value || '고객';
+
+  let filtered = MENUS.filter(m => {
+    const catOk = selectedCategory === '전체' || m.category === selectedCategory;
+    return catOk;
+  });
+
+  const withinBudget = filtered.filter(m => m.price <= budget);
+  const overBudget = filtered.filter(m => m.price > budget && m.price <= budget * 1.3);
+
+  let html = `<div class="result-box success fadeIn">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+      <span style="font-size:1.4rem;">✨</span>
+      <div>
+        <div style="font-weight:800;font-size:1rem;">${name}님의 예산 <span style="color:var(--accent);font-family:'Space Mono',monospace;">${budget.toLocaleString()}원</span> 추천 결과</div>
+        <div style="color:var(--muted);font-size:.82rem;margin-top:2px;">예산 내 ${withinBudget.length}개 · 예산 초과(±30%) ${overBudget.length}개</div>
+      </div>
+    </div>`;
+
+  if (withinBudget.length === 0) {
+    html += `<div class="notice">⚠️ 선택한 카테고리 + 예산 범위에 맞는 메뉴가 없습니다. 카테고리를 변경하거나 예산을 늘려보세요.</div>`;
+  } else {
+    html += `<div style="font-weight:700;margin-bottom:10px;color:var(--green);">✅ 예산 내 메뉴</div>`;
+    html += `<div class="menu-grid">`;
+    withinBudget.forEach(m => {
+      const canSolo = m.minOrder <= budget;
+      const needPot = !canSolo;
+      html += `<div class="menu-card${pref==='pot'&&needPot?' selected':''}">
+        <div class="emoji">${m.emoji}</div>
+        <div class="name">${m.name}</div>
+        <div class="price">${m.price.toLocaleString()}원</div>
+        <div class="category">${m.category} · 최소주문 ${m.minOrder.toLocaleString()}원 · 배달비 ${m.deliveryFee.toLocaleString()}원</div>
+        ${canSolo ? '<div class="match-badge">혼자OK</div>' : '<span class="badge yellow" style="margin-top:6px;font-size:.7rem;">팟 추천</span>'}
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (overBudget.length > 0) {
+    html += `<div class="divider"></div>
+      <div style="font-weight:700;margin-bottom:10px;color:var(--accent2);">💡 조금 더 내면 먹을 수 있어요</div>
+      <div class="menu-grid">`;
+    overBudget.slice(0,4).forEach(m => {
+      const diff = m.price - budget;
+      html += `<div class="menu-card">
+        <div class="emoji">${m.emoji}</div>
+        <div class="name">${m.name}</div>
+        <div class="price">${m.price.toLocaleString()}원 <span style="color:var(--muted);font-size:.8rem;">(+${diff.toLocaleString()})</span></div>
+        <div class="category">${m.category}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `</div>`;
+  document.getElementById('recommendResult').innerHTML = html;
+}
+
+function resetRecommend() {
+  document.getElementById('myBudget').value = '15000';
+  document.getElementById('myName').value = '';
+  document.getElementById('minOrderPref').value = 'solo';
+  document.querySelectorAll('#categoryTags .tag').forEach(t => t.classList.remove('active'));
+  document.querySelector('#categoryTags .tag').classList.add('active');
+  selectedCategory = '전체';
+  document.getElementById('recommendResult').innerHTML = '';
+}
+
+// ══════════════════════════════════════
+// BOARD (server API)
+// ══════════════════════════════════════
+const API_BASE = '/api';
+let boardFilter = '전체';
+let cachedPosts = [];
+
+async function apiRequest(url, options = {}) {
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || '서버 요청 실패');
+  return data;
+}
+
+async function getBoardPosts() {
+  const q = boardFilter === '전체' ? '' : `?cat=${encodeURIComponent(boardFilter)}`;
+  cachedPosts = await apiRequest(`${API_BASE}/posts${q}`);
+  return cachedPosts;
+}
+
+function timeAgo(ts) {
+  const m = Math.floor((Date.now() - ts) / 60000);
+  if (m < 1) return '방금 전';
+  if (m < 60) return m + '분 전';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + '시간 전';
+  return Math.floor(h / 24) + '일 전';
+}
+
+async function submitPost() {
+  const nick = document.getElementById('bNick').value.trim();
+  if (!nick) { showToast('닉네임을 입력해주세요', true); return; }
+
+  try {
+    await apiRequest(`${API_BASE}/posts`, {
+      method: 'POST',
+      body: JSON.stringify({
+        author: nick,
+        cat: document.getElementById('bCat').value,
+        menu: document.getElementById('bMenu').value.trim(),
+        budget: parseInt(document.getElementById('bBudget').value) || 15000,
+        size: parseInt(document.getElementById('bSize').value),
+        msg: document.getElementById('bMsg').value.trim()
+      })
+    });
+    document.getElementById('bMenu').value = '';
+    document.getElementById('bMsg').value = '';
+    await renderBoard();
+    showToast('팟 모집 글이 올라갔어요! 🎉');
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function joinPost(id) {
+  try {
+    await apiRequest(`${API_BASE}/posts/${id}/join`, { method: 'POST' });
+    await renderBoard();
+    showToast('팟에 참여했어요! 🙌');
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+async function deleteMyPosts() {
+  const nick = document.getElementById('bDeleteNick').value.trim();
+  if (!nick) { showToast('닉네임을 입력해주세요', true); return; }
+
+  try {
+    const result = await apiRequest(`${API_BASE}/posts?author=${encodeURIComponent(nick)}`, { method: 'DELETE' });
+    if (!result.deleted) { showToast('해당 닉네임의 글이 없어요', true); return; }
+    await renderBoard();
+    showToast(`"${nick}" 글 ${result.deleted}개 삭제됐어요`);
+  } catch (e) {
+    showToast(e.message, true);
+  }
+}
+
+function setBoardFilter(cat, el) {
+  boardFilter = cat;
+  document.querySelectorAll('.board-filter').forEach(b => b.classList.remove('on'));
+  el.classList.add('on');
+  renderBoard();
+}
+
+async function renderBoard() {
+  const el = document.getElementById('boardList');
+  el.innerHTML = `<div class="board-empty"><span class="big">⏳</span>게시글을 불러오는 중...</div>`;
+
+  let list = [];
+  try {
+    list = await getBoardPosts();
+  } catch (e) {
+    document.getElementById('boardCount').textContent = '0';
+    el.innerHTML = `<div class="board-empty"><span class="big">⚠️</span>서버에 연결할 수 없어요.<br>${e.message}</div>`;
+    return;
+  }
+
+  document.getElementById('boardCount').textContent = list.length;
+  if (list.length === 0) {
+    el.innerHTML = `<div class="board-empty"><span class="big">🍽️</span>${boardFilter === '전체' ? '아직 모집 글이 없어요. 첫 번째 팟을 만들어보세요!' : boardFilter + ' 카테고리 글이 없어요'}</div>`;
+    return;
+  }
+  const myNick = document.getElementById('bNick').value.trim();
+  const catColors = {치킨:'#ff9f43',피자:'#ee5a24',중식:'#f9ca24',한식:'#6ab04c',분식:'#e056fd',버거:'#30336b',일식:'#22a6b3'};
+  el.innerHTML = list.map(p => {
+    const pct = Math.round(p.joined / p.size * 100);
+    const isFull = p.joined >= p.size;
+    const isMine = myNick && p.author === myNick;
+    const fillClass = pct >= 100 ? 'full-fill' : pct >= 67 ? 'almost' : '';
+    const col = catColors[p.cat] || 'var(--accent)';
+    return `<div class="post-card${isFull ? ' post-full' : ''}">
+      <div class="post-top">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <span class="post-cat-badge" style="background:${col}22;color:${col};">${p.cat}</span>
+          ${isMine ? '<span class="my-badge">내 글</span>' : ''}
+        </div>
+        <span class="post-time">${timeAgo(p.ts)}</span>
+      </div>
+      <div class="post-title">${p.menu || p.cat + ' 팟 모집'}</div>
+      ${p.msg ? `<div class="post-msg">${p.msg}</div>` : ''}
+      <div class="post-chips">
+        <div class="chip">👤 <strong>${p.author}</strong></div>
+        <div class="chip">💰 <strong>${p.budget.toLocaleString()}원</strong>/인</div>
+        <div class="chip">📦 합계 ${(p.budget * p.size).toLocaleString()}원+</div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill ${fillClass}" style="width:${Math.min(pct,100)}%"></div></div>
+      <div class="progress-label"><span>참여 ${p.joined}/${p.size}명</span><span>${isFull ? '🔴 마감' : '🟢 모집 중'}</span></div>
+      ${!isFull
+        ? `<button class="join-btn" onclick="joinPost('${p.id}')" ${isMine ? 'disabled title="내 글은 직접 참여할 수 없어요"' : ''}>
+            ${isMine ? '✏️ 내 글' : '✅ 참여하기'}</button>`
+        : `<button class="join-btn" disabled>마감됨</button>`}
+    </div>`;
+  }).join('');
+}
+
+function showToast(msg, err = false) {
+  const t = document.createElement('div');
+  t.className = 'toast' + (err ? ' err' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2800);
+}
+
+
+// Auto refresh board every 3 seconds
+setInterval(() => {
+  const boardPage = document.getElementById('page-board');
+  if (boardPage && boardPage.classList.contains('active')) {
+    renderBoard();
+  }
+}, 3000);
+
+// Initial render
+renderBoard();
+</script>
+</body>
+</html>
