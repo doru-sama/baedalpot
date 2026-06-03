@@ -496,18 +496,12 @@
           </div>
           <button class="btn secondary" onclick="deleteMyPosts()" style="width:100%;">내 글 전체 삭제</button>
         </div>
-
-        <div class="notice" style="background:rgba(255,92,0,.06);border-color:rgba(255,92,0,.2);border-radius:8px;padding:12px 14px;font-size:.8rem;color:var(--muted);line-height:1.6;">
-          💾 <strong style="color:var(--accent2);">저장 방식 안내</strong><br>
-          게시글은 이 브라우저의 localStorage에 저장됩니다. 같은 컴퓨터·같은 브라우저에서 새로고침해도 유지되지만, 다른 기기와는 공유되지 않아요.
-        </div>
       </div>
 
       <!-- 게시판 본문 -->
       <div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
           <div style="font-weight:800;font-size:1.05rem;">모집 중인 팟 <span id="boardCount" style="background:var(--accent);color:#fff;padding:1px 9px;border-radius:20px;font-size:.8rem;margin-left:4px;">0</span></div>
-          <button class="btn secondary" style="padding:7px 16px;font-size:.82rem;" onclick="renderBoard()">↻ 새로고침</button>
         </div>
         <div class="board-filters" id="boardFilters">
           <button class="board-filter on" onclick="setBoardFilter('전체',this)">전체</button>
@@ -813,14 +807,6 @@ function showToast(msg, err = false) {
   setTimeout(() => t.remove(), 2800);
 }
 
-
-// Auto refresh board every 3 seconds
-setInterval(() => {
-  const boardPage = document.getElementById('page-board');
-  if (boardPage && boardPage.classList.contains('active')) {
-    renderBoard();
-  }
-}, 3000);
 
 // Initial render
 renderBoard();
